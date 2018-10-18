@@ -2,13 +2,13 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -48,41 +48,37 @@ type collector struct {
 
 const metricsNamespace = "yarn"
 
-func newFuncMetric(metricName string, docString string) *prometheus.Desc {
-	return prometheus.NewDesc(prometheus.BuildFQName(metricsNamespace, "", metricName), docString, nil, nil)
-}
-
 func newCollector(endpoint *url.URL, username string, password string) *collector {
 	return &collector{
 		endpoint:              endpoint,
 		username:              username,
 		password:              password,
-		up:                    newFuncMetric("up", "Able to contact YARN"),
-		applicationsSubmitted: newFuncMetric("applications_submitted", "Total applications submitted"),
-		applicationsCompleted: newFuncMetric("applications_completed", "Total applications completed"),
-		applicationsPending:   newFuncMetric("applications_pending", "Applications pending"),
-		applicationsRunning:   newFuncMetric("applications_running", "Applications running"),
-		applicationsFailed:    newFuncMetric("applications_failed", "Total application failed"),
-		applicationsKilled:    newFuncMetric("applications_killed", "Total application killed"),
-		memoryReserved:        newFuncMetric("memory_reserved", "Memory reserved"),
-		memoryAvailable:       newFuncMetric("memory_available", "Memory available"),
-		memoryAllocated:       newFuncMetric("memory_allocated", "Memory allocated"),
-		memoryTotal:           newFuncMetric("memory_total", "Total memory"),
-		virtualCoresReserved:  newFuncMetric("virtual_cores_reserved", "Virtual cores reserved"),
-		virtualCoresAvailable: newFuncMetric("virtual_cores_available", "Virtual cores available"),
-		virtualCoresAllocated: newFuncMetric("virtual_cores_allocated", "Virtual cores allocated"),
-		virtualCoresTotal:     newFuncMetric("virtual_cores_total", "Total virtual cores"),
-		containersAllocated:   newFuncMetric("containers_allocated", "Containers allocated"),
-		containersReserved:    newFuncMetric("containers_reserved", "Containers reserved"),
-		containersPending:     newFuncMetric("containers_pending", "Containers pending"),
-		nodesTotal:            newFuncMetric("nodes_total", "Nodes total"),
-		nodesLost:             newFuncMetric("nodes_lost", "Nodes lost"),
-		nodesUnhealthy:        newFuncMetric("nodes_unhealthy", "Nodes unhealthy"),
-		nodesDecommissioned:   newFuncMetric("nodes_decommissioned", "Nodes decommissioned"),
-		nodesDecommissioning:  newFuncMetric("nodes_decommissioning", "Nodes decommissioning"),
-		nodesRebooted:         newFuncMetric("nodes_rebooted", "Nodes rebooted"),
-		nodesActive:           newFuncMetric("nodes_active", "Nodes active"),
-		scrapeFailures:        newFuncMetric("scrape_failures_total", "Number of errors while scraping YARN metrics"),
+		up:                    newFuncMetric(metricsNamespace, "up", "Able to contact YARN", nil),
+		applicationsSubmitted: newFuncMetric(metricsNamespace, "applications_submitted", "Total applications submitted", nil),
+		applicationsCompleted: newFuncMetric(metricsNamespace, "applications_completed", "Total applications completed", nil),
+		applicationsPending:   newFuncMetric(metricsNamespace, "applications_pending", "Applications pending", nil),
+		applicationsRunning:   newFuncMetric(metricsNamespace, "applications_running", "Applications running", nil),
+		applicationsFailed:    newFuncMetric(metricsNamespace, "applications_failed", "Total application failed", nil),
+		applicationsKilled:    newFuncMetric(metricsNamespace, "applications_killed", "Total application killed", nil),
+		memoryReserved:        newFuncMetric(metricsNamespace, "memory_reserved", "Memory reserved", nil),
+		memoryAvailable:       newFuncMetric(metricsNamespace, "memory_available", "Memory available", nil),
+		memoryAllocated:       newFuncMetric(metricsNamespace, "memory_allocated", "Memory allocated", nil),
+		memoryTotal:           newFuncMetric(metricsNamespace, "memory_total", "Total memory", nil),
+		virtualCoresReserved:  newFuncMetric(metricsNamespace, "virtual_cores_reserved", "Virtual cores reserved", nil),
+		virtualCoresAvailable: newFuncMetric(metricsNamespace, "virtual_cores_available", "Virtual cores available", nil),
+		virtualCoresAllocated: newFuncMetric(metricsNamespace, "virtual_cores_allocated", "Virtual cores allocated", nil),
+		virtualCoresTotal:     newFuncMetric(metricsNamespace, "virtual_cores_total", "Total virtual cores", nil),
+		containersAllocated:   newFuncMetric(metricsNamespace, "containers_allocated", "Containers allocated", nil),
+		containersReserved:    newFuncMetric(metricsNamespace, "containers_reserved", "Containers reserved", nil),
+		containersPending:     newFuncMetric(metricsNamespace, "containers_pending", "Containers pending", nil),
+		nodesTotal:            newFuncMetric(metricsNamespace, "nodes_total", "Nodes total", nil),
+		nodesLost:             newFuncMetric(metricsNamespace, "nodes_lost", "Nodes lost", nil),
+		nodesUnhealthy:        newFuncMetric(metricsNamespace, "nodes_unhealthy", "Nodes unhealthy", nil),
+		nodesDecommissioned:   newFuncMetric(metricsNamespace, "nodes_decommissioned", "Nodes decommissioned", nil),
+		nodesDecommissioning:  newFuncMetric(metricsNamespace, "nodes_decommissioning", "Nodes decommissioning", nil),
+		nodesRebooted:         newFuncMetric(metricsNamespace, "nodes_rebooted", "Nodes rebooted", nil),
+		nodesActive:           newFuncMetric(metricsNamespace, "nodes_active", "Nodes active", nil),
+		scrapeFailures:        newFuncMetric(metricsNamespace, "scrape_failures_total", "Number of errors while scraping YARN metrics", nil),
 	}
 }
 
@@ -163,17 +159,15 @@ func (c *collector) Collect(ch chan<- prometheus.Metric) {
 	return
 }
 
-func basicAuth(username, password string) string {
-	auth := username + ":" + password
-	return base64.StdEncoding.EncodeToString([]byte(auth))
-}
-
 func fetch(u *url.URL, username string, password string) (map[string]map[string]float64, error) {
 
 	transCfg := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // ignore expired SSL certificates
 	}
-	client := &http.Client{Transport: transCfg}
+
+	client := &http.Client{
+		Transport: transCfg,
+		Timeout:   100 * time.Second}
 
 	req, err := http.NewRequest("GET", u.String(), nil)
 	req.Header.Add("Authorization", "Basic "+basicAuth(username, password))
