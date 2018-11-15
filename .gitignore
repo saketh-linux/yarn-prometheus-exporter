@@ -2,6 +2,4 @@ yarn-prometheus-exporter
 
 /.idea/workspace.xml
 
-yarn_metrics_conf
-
 .vscode/
