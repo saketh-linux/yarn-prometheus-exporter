@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+  labels:
+    app: prometheus
+  name: prometheus
+spec:
+  ports:
+  - name: prometheus-http
+    port: 9090
+    protocol: TCP
+    targetPort: 9090
+  selector:
+    app: prometheus
+    role: prom-service
+  type: NodePort

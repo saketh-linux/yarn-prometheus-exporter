@@ -1,0 +1,79 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+ labels:
+  app: prometheus
+  role: prom-service
+ name: prometheus
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        role: prom-service
+      name: prometheus
+    spec:
+      serviceAccountName: prometheus
+      securityContext:
+        runAsUser: 1000
+      containers:
+      - name: prometheus
+        resources:
+          limits:
+            cpu: "400m"
+            memory: "2048Mi"
+        ports:
+        - containerPort: 9090
+          name: prometheus
+        args:
+        - --storage.tsdb.retention=6h
+        - --storage.tsdb.min-block-duration=2m
+        - --config.file=/etc/prometheus/prometheus.yml
+        #- --web.listen-address=localhost:9090
+        - --web.enable-lifecycle
+        image: docker.optum.com/seset/prometheus:v2.3.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /etc/prometheus
+          name: prometheus-config
+        - mountPath: /prometheus
+          name: prometheus-data
+
+      - name: alertmanager
+        args:
+        - --config.file=/etc/alertmanager/alertmanager.yml
+        - --storage.path=/alertmanager/data
+        image: docker.optum.com/seset/alertmanager:v0.15.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "200Mi"
+        ports:
+        - containerPort: 9093
+          name: web
+        volumeMounts:
+        - mountPath: /etc/alertmanager
+          name: alertmanager-config
+        - mountPath: /alertmanager
+          name: alertmanager-data
+      restartPolicy: Always
+      volumes:
+      - name: prometheus-config
+        configMap:
+          defaultMode: 420
+          name: prometheus
+      - name: alertmanager-config
+        configMap:
+          defaultMode: 420
+          name: prometheus-alerts
+      - name: prometheus-data
+        emptyDir: {}
+      - name: alertmanager-data
+        emptyDir: {}
