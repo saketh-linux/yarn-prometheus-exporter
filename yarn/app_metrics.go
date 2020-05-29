@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+        "os/exec"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -37,7 +38,7 @@ func newAppsCollector(endpoint *url.URL, username string, password string, queue
 		allocatedMB:       newFuncMetric(appMetricsNamespace, "allocated_memory", "Allocated memory", []string{"user", "name", "id", "state", "applicationType", "queue"}),
 		allocatedVCores:   newFuncMetric(appMetricsNamespace, "allocatedVCores", "Allocated virtual cores", []string{"user", "name", "id", "state", "applicationType", "queue"}),
 		runningContainers: newFuncMetric(appMetricsNamespace, "runningContainers", "Running containers", []string{"user", "name", "id", "state", "applicationType", "queue"}),
-		elapsedTime:       newFuncMetric(appMetricsNamespace, "elapsedTime", "Elaspsed Time", []string{"user", "name", "id", "state", "applicationType", "queue"}),
+		elapsedTime:       newFuncMetric(appMetricsNamespace, "elapsedTime", "Elaspsed Time", []string{"user", "name", "id", "state", "applicationType", "queue","mail"}),
 	}
 }
 
@@ -76,11 +77,13 @@ func (c *collectorApps) Collect(ch chan<- prometheus.Metric) {
 			state := value["state"].(string)
 			applicationType := value["applicationType"].(string)
 			id := value["id"].(string)
+                        out,_ := exec.Command("sh","-c",fmt.Sprintf("ldapsearch -LLL -h proxyldap -p 55395 -w ldap2015 -D uid=NISMaster,ou=people,dc=uhc,dc=com -b ou=people,dc=uhc,dc=com -s one '(uid=%s)'|grep mail|awk '{print $2}'",user)).Output()
+                        mail := strings.TrimSpace(string(out))
 
 			ch <- prometheus.MustNewConstMetric(c.allocatedMB, prometheus.GaugeValue, allocatedMB, user, name, id, state, applicationType, yarn_queue)
 			ch <- prometheus.MustNewConstMetric(c.allocatedVCores, prometheus.GaugeValue, allocatedVCores, user, name, id, state, applicationType, yarn_queue)
 			ch <- prometheus.MustNewConstMetric(c.runningContainers, prometheus.GaugeValue, runningContainers, user, name, id, state, applicationType, yarn_queue)
-			ch <- prometheus.MustNewConstMetric(c.elapsedTime, prometheus.GaugeValue, elapsedTime, user, name, id, state, applicationType, yarn_queue)
+			ch <- prometheus.MustNewConstMetric(c.elapsedTime, prometheus.GaugeValue, elapsedTime, user, name, id, state, applicationType, yarn_queue,mail)
 		}
 
 	}

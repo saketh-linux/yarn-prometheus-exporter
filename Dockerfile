@@ -3,6 +3,7 @@
 ############################
 FROM golang:alpine AS builder
 RUN apk add git
+RUN apk add openldap-clients
 WORKDIR $GOPATH/src/yarn
 COPY /yarn $GOPATH/src/yarn
 ENV GOBIN=$GOPATH/bin
@@ -14,8 +15,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflag
 ############################
 # STEP 2 build a small image
 ############################
-FROM scratch
-# Copy the  executable.
-COPY --from=builder /go/bin/yarn-prometheus-exporter /go/bin/yarn-prometheus-exporter
+#FROM scratch
+## Copy the  executable.
+#COPY --from=builder /go/bin/yarn-prometheus-exporter /go/bin/yarn-prometheus-exporter
 # Run the binary.
 ENTRYPOINT ["/go/bin/yarn-prometheus-exporter"]

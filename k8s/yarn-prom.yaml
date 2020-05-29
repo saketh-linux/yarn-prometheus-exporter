@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
       - name: yarn-exporter
-        image: docker.optum.com/pi_dsw/yarn-prometheus-exporter:dev
+        image: docker.repo1.uhc.com/optumiq_dsw/yarn-prometheus-exporter:latest
         imagePullPolicy: Always
         env:
         - name: YARN_PROMETHEUS_LISTEN_ADDR
