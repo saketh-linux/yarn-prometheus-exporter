@@ -1,0 +1,52 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  config.yml: |-
+    global:
+    templates:
+      - '/etc/alertmanager/*.tmpl'
+    route:
+      receiver: alert-emailer
+      group_wait: 10s
+      group_interval: 6h
+      repeat_interval: 12h
+      group_by: [ mail,user ]
+    receivers:
+      - name: alert-emailer
+        email_configs:
+          - to: "{{ .GroupLabels.mail }},jakkula_saketh@optum.com,anil.venkata@optum.com"
+            send_resolved: false
+            from: yarn-dsw@email.com
+            smarthost: mailo2.uhc.com:25
+            require_tls: false
+            headers:
+              subject:
+                "Jobs owned by {{ .GroupLabels.user }} are running more than 24 hrs"
+            html: |
+              <html>
+                <body>
+                  <h3 style="background-color:red;"> {{ .Alerts.Firing | len }} alerts for user={{ .GroupLabels.user }} owner={{ .GroupLabels.mail }} </h3>
+                  <p>
+                  Following jobs are running for more than 24  hrs
+
+                  
+                  <ul>
+                  {{ range .Alerts.Firing }}
+                  <li>
+                      Job Name = {{ .Annotations.name }} <br />
+                      Id = {{.Labels.id}} <br />
+                      Queue = {{ .Annotations.queue }} <br />
+                      Elapsed Time = {{ .Labels.value }}hrs <br />
+                      <br />
+                 </li>
+                  {{ end }}
+                  </ul>
+                  To kill a job run yarn application -kill JOB_ID  <br />
+                  <br />
+                  Please check the utilization at http://dsi-bdpaas-queue-monitor.optum.com/grafana/d/_e4aDWeWk/yarn-jobs-elapsed-time?orgId=1&var-user={{ .GroupLabels.user }}&var-queue=All
+                  </p>
+                </body>
+              </html>
